@@ -15,6 +15,6 @@
     "notes",
     "migration"
   ],
-  "min_app_version": "2.8",
+  "app_min_version": "2.8",
   "icon": "icon.png"
 }
