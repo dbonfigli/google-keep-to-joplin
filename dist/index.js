@@ -83,10 +83,14 @@
                                             continue
                                         }
                                         let l, s = a;
+                                        let createdTime = e.createdTimestampUsec / 1000;
+                                        let updatedTime = e.userEditedTimestampUsec / 1000;
                                         try {
                                             l = yield i.default.data.post(["notes"], null, {
                                                 title: r,
-                                                body: s
+                                                body: s,
+                                                user_created_time: createdTime,
+                                                user_updated_time: updatedTime,
                                             }), console.info(`Created note: ${r}`)
                                         } catch (e) {
                                             console.error(`Failed to create note for file: ${o}`, e);
@@ -96,15 +100,39 @@
                                             for (const t of e.labels) {
                                                 const e = t.name || t;
                                                 try {
-                                                    yield i.default.data.post(["tags"], null, {
-                                                        title: e
-                                                    })
-                                                } catch (e) {}
-                                                try {
-                                                    yield i.default.data.post(["tags", e, "notes"], null, {
-                                                        id: l.id
-                                                    }), console.info(`Added tag "${e}" to note "${r}"`)
-                                                } catch (e) {}
+                                                    var tagId;
+                                                    try {
+                                                        const allTagsResponse = yield i.default.data.get(["tags"]);
+                                                        allTagsResponse.items
+                                                        const tag = Array.isArray(allTagsResponse?.items) ? allTagsResponse.items.find(item => item && item.title === e) : undefined;
+                                                        tagId = tag ? tag.id : undefined;
+                                                    } catch (ex) {
+                                                        console.warn(`could not read tags ${e}): ${ex}`);
+                                                        throw ex;
+                                                    }
+                                                    console.warn(`now tag is : ${tagId}`);
+                                                    if (tagId === undefined) { 
+                                                    let cratedTag;
+                                                    try {
+                                                        cratedTag = yield i.default.data.post(["tags"], null, {
+                                                                title: e
+                                                            })
+                                                        console.warn(`created tag: ${cratedTag.id}`);
+                                                        } catch (ex) {
+                                                            console.warn(`could not create tag ${e}): ${ex}`);
+                                                        }
+                                                        tagId = cratedTag.id;
+                                                    }
+                                                    try {
+                                                        yield i.default.data.post(["tags", tagId, "notes"], null, {
+                                                            id: l.id
+                                                        }), console.info(`Added tag "${e}" to note "${r}"`)
+                                                    } catch (ex) {
+                                                        console.warn(`could not add tag "${e}" to note ${r}): ${ex}`);
+                                                    }
+                                                } catch (ex) {
+                                                    console.warn(`could not add tag ${ex}`);
+                                                }
                                             }
                                         if (e.attachments && Array.isArray(e.attachments))
                                             for (const t of e.attachments) {
