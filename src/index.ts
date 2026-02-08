@@ -110,15 +110,18 @@ async function importSingleFile(file: string, tagMap: Map<string, string>) {
 				: fallbackText
 			: "Untitled");
 
-	let body = "";
 
-	// Checklist note
-	if (Array.isArray(note.listContent) && note.listContent.length > 0) {
-		body = checklistToMarkdown(note.listContent);
-	}
-	// Regular text note
-	else {
-		body = note.textContent || "";
+	let body =
+		Array.isArray(note.listContent) && note.listContent.length > 0
+			? checklistToMarkdown(note.listContent)
+			: note.textContent || "";
+
+	// Create resources first
+	const resources = await createResources(note.attachments, file);
+
+	// Append resource links
+	for (const r of resources) {
+		body += `\n\n![${r.fileName}](:/${r.resourceId})`;
 	}
 
 	const createdNote = await joplin.data.post(["notes"], null, {
@@ -139,7 +142,6 @@ async function importSingleFile(file: string, tagMap: Map<string, string>) {
 	const metaTags = getGoogleKeepMetaTags(note);
 	await applyTags(createdNote.id, metaTags, tagMap);
 
-	await applyAttachments(createdNote.id, body, note.attachments, file);
 }
 
 function getGoogleKeepMetaTags(note: KeepNote): string[] {
@@ -186,16 +188,14 @@ async function applyTags(
 	}
 }
 
-async function applyAttachments(
-	noteId: string,
-	originalBody: string,
+async function createResources(
 	attachments: KeepNote["attachments"],
 	jsonFilePath: string,
-) {
-	if (!Array.isArray(attachments) || attachments.length === 0) return;
+): Promise<{ fileName: string; resourceId: string }[]> {
+	if (!Array.isArray(attachments)) return [];
 
-	let body = originalBody;
 	const baseDir = path.dirname(jsonFilePath);
+	const results: { fileName: string; resourceId: string }[] = [];
 
 	for (const att of attachments) {
 		const fileName = att.filePath || att.fileName;
@@ -209,8 +209,8 @@ async function applyAttachments(
 			[{ path: fullPath }],
 		);
 
-		body += `\n\n![${fileName}](:/${resource.id})`;
+		results.push({ fileName, resourceId: resource.id });
 	}
 
-	await joplin.data.put(["notes", noteId], null, { body });
+	return results;
 }
