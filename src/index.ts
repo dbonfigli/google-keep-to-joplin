@@ -25,6 +25,10 @@ interface KeepNote {
 	userEditedTimestampUsec?: number;
 	labels?: KeepLabel[] | string[];
 	attachments?: KeepAttachment[];
+	color?: string;
+	isTrashed?: boolean;
+	isPinned?: boolean;
+	isArchived?: boolean;
 }
 
 joplin.plugins.register({
@@ -128,8 +132,36 @@ async function importSingleFile(file: string, tagMap: Map<string, string>) {
 			: undefined,
 	});
 
+	// translate regular google keep notes to joplin tags
 	await applyTags(createdNote.id, note.labels, tagMap);
+
+	// transalte google keep additional tags like color, isArchived... to Joplin tags
+	const metaTags = getGoogleKeepMetaTags(note);
+	await applyTags(createdNote.id, metaTags, tagMap);
+
 	await applyAttachments(createdNote.id, body, note.attachments, file);
+}
+
+function getGoogleKeepMetaTags(note: KeepNote): string[] {
+	const tags: string[] = [];
+
+	if (note.color) {
+		tags.push(`GoogleKeep/color/${note.color}`);
+	}
+
+	if (note.isArchived) {
+		tags.push("GoogleKeep/isArchived");
+	}
+
+	if (note.isPinned) {
+		tags.push("GoogleKeep/isPinned");
+	}
+
+	if (note.isTrashed) {
+		tags.push("GoogleKeep/isTrashed");
+	}
+
+	return tags;
 }
 
 async function applyTags(
