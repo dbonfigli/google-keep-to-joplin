@@ -12,9 +12,15 @@ interface KeepAttachment {
 	fileName?: string;
 }
 
+interface KeepChecklistItem {
+	text?: string;
+	isChecked?: boolean;
+}
+
 interface KeepNote {
 	title?: string;
 	textContent?: string;
+	listContent?: KeepChecklistItem[];
 	createdTimestampUsec?: number;
 	userEditedTimestampUsec?: number;
 	labels?: KeepLabel[] | string[];
@@ -73,15 +79,42 @@ async function loadExistingTags(): Promise<Map<string, string>> {
 	return map;
 }
 
+function checklistToMarkdown(items: KeepChecklistItem[]): string {
+	return items
+		.map(item => {
+			const checked = item.isChecked ? "x" : " ";
+			const text = item.text?.trim() ?? "";
+			return `- [${checked}] ${text}`;
+		})
+		.join("\n");
+}
+
 async function importSingleFile(file: string, tagMap: Map<string, string>) {
 	const raw = await fs.readFile(file, "utf8");
 	const note: KeepNote = JSON.parse(raw);
 
-	const title = (note.title || "Untitled").trim();
-	const body = note.textContent || "";
+	const fallbackText =
+		note.textContent?.trim() ||
+		note.listContent?.[0]?.text?.trim() ||
+		"";
 
-	if (!title && !body) {
-		throw new Error("Note has no title and no content");
+	const title =
+		note.title?.trim() ||
+		(fallbackText
+			? fallbackText.length > 40
+				? fallbackText.slice(0, 37) + "..."
+				: fallbackText
+			: "Untitled");
+
+	let body = "";
+
+	// Checklist note
+	if (Array.isArray(note.listContent) && note.listContent.length > 0) {
+		body = checklistToMarkdown(note.listContent);
+	}
+	// Regular text note
+	else {
+		body = note.textContent || "";
 	}
 
 	const createdNote = await joplin.data.post(["notes"], null, {
