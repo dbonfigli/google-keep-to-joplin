@@ -12,11 +12,15 @@
 		"joplin-plugin",
 		"import",
 		"google keep",
+		"keep",
+		"google",
 		"takeout",
 		"notes",
 		"migration"
 	],
-	"categories": [],
+	"categories": [
+		"integrations"
+	],
 	"screenshots": [],
 	"icons": {},
 	"promo_tile": {}
